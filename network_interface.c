@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "network_interface.h"
-#include "client_manager.h"
+#include "player_manager.h"
 #include "rules_engine.h"
 
 void game_status_response(client *cl, int status) {

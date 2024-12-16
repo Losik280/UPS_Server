@@ -3,7 +3,7 @@ CC=gcc
 all:	clean comp
 
 comp:
-	${CC} -g main.c communication.h communication.c client_manager.h client_manager.c game_manager.h game_manager.c game_logic.h game_logic.c -o ups_server -lpthread -lrt -lm -Wall
+	${CC} -g server_core.c network_interface.h network_interface.c player_manager.h player_manager.c match_manager.h match_manager.c rules_engine.h rules_engine.c def_n_struct.h -o ups_server -lpthread -lrt -lm -Wall
 
 clean:
 	rm -f ups_server

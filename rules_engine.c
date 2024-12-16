@@ -1,6 +1,6 @@
 #include "rules_engine.h"
 #include "match_manager.h"
-#include "client_manager.h"
+#include "player_manager.h"
 #include "network_interface.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -8,7 +8,7 @@
 #include <stdlib.h>
 
 #include "def_n_struct.h"
-#include "client_manager.h"
+#include "player_manager.h"
 #include "network_interface.h"
 
 server_address server_info;
