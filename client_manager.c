@@ -194,23 +194,12 @@ int remove_client_by_socket(int socket) {
 void *run_client(void *arg) {
     client *cl = (client *) arg;
 
-//    int found = find_waiting_player(cl);
 
     char response[LOGIN_MESSAGE_RESP_SIZE] = {0};
     sprintf(response, "LOGIN;%s\n", cl->username);
-//    if (found == FALSE) {
-//        sprintf(response, "LOGIN;%s;%c\n", cl->username, FIRST_PL_CHAR);
-//    } else {
-//        sprintf(response, "LOGIN;%s;%c\n", cl->username, SECOND_PL_CHAR);
-//    }
+
     send_mess(cl, response);
 
-//    if (found == TRUE) {
-//        // Start the game
-//        char game_response[START_GAME_MESSAGE_SIZE] = {0};
-//        sprintf(game_response, "START_GAME;%s;%c;%c\n", cl->opponent->username, cl->opponent->client_char, cl->is_playing ? '1' : '0');
-//        send_mess(cl, game_response);
-//    }
 
     receive_messages(cl);
     return NULL;
