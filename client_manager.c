@@ -83,7 +83,9 @@ int find_waiting_player(client *cl) {
     pthread_mutex_lock(&clients_mutex);
     int found = FALSE;
     for (int i = 0; i < MAX_CLIENTS; i++) {
-        if (clients[i] != NULL && strcmp(clients[i]->username, cl->username) != 0 && /*clients[i]->is_connected &&*/ clients[i]->current_game_id == GAME_NULL_ID && clients[i]->want_game == TRUE) {
+        if (clients[i] != NULL && strcmp(clients[i]->username, cl->username) != 0 &&
+            /*clients[i]->is_connected &&*/ clients[i]->current_game_id == GAME_NULL_ID &&
+            clients[i]->want_game == TRUE) {
             game *new_game = create_new_game(clients[i], cl);
             if (new_game == NULL) {
                 break;
@@ -104,7 +106,8 @@ int find_waiting_player(client *cl) {
             cl->want_game = FALSE;
 
             char response[START_GAME_MESSAGE_SIZE] = {0};
-            sprintf(response, "START_GAME;%s;%c;%c\n", clients[i]->opponent->username, clients[i]->opponent->client_char, clients[i]->is_playing ? '1' : '0');
+            sprintf(response, "START_GAME;%s;%c;%c\n", clients[i]->opponent->username,
+                    clients[i]->opponent->client_char, clients[i]->is_playing ? '1' : '0');
             send_mess(clients[i], response);
 
             found = TRUE;
@@ -147,7 +150,8 @@ void print_clients() {
     printf("Connected clients: \n");
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (clients[i] != NULL /*&& clients[i]->is_connected*/) {
-            printf("    Client: %d; Game: %d; Socket: %d\n", clients[i]->id, clients[i]->current_game_id, clients[i]->socket);
+            printf("    Client: %d; Game: %d; Socket: %d\n", clients[i]->id, clients[i]->current_game_id,
+                   clients[i]->socket);
         }
     }
     pthread_mutex_unlock(&clients_mutex);
@@ -209,6 +213,7 @@ void *run_client(void *arg) {
 //    }
 
     receive_messages(cl);
+    return NULL;
 }
 
 void set_want_game(client *cl, int want_game) {
