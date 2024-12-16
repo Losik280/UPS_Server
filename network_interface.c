@@ -3,9 +3,9 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <stdlib.h>
-#include "communication.h"
+#include "network_interface.h"
 #include "client_manager.h"
-#include "game_logic.h"
+#include "rules_engine.h"
 
 void game_status_response(client *cl, int status) {
     char response[GAME_STATUS_RESP_SIZE] = {0};

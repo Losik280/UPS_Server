@@ -4,8 +4,8 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
-#include "config.h"
-#include "communication.h"
+#include "def_n_struct.h"
+#include "network_interface.h"
 
 // Mutex for clients array
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;

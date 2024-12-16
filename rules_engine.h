@@ -1,7 +1,7 @@
 #ifndef __GAME_LOGIC_H__
 #define __GAME_LOGIC_H__
 
-#include "config.h"
+#include "def_n_struct.h"
 
 
 /**

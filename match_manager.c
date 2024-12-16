@@ -4,8 +4,8 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-#include "config.h"
-#include "game_manager.h"
+#include "def_n_struct.h"
+#include "match_manager.h"
 
 pthread_mutex_t mutex_games = PTHREAD_MUTEX_INITIALIZER;
 game *games[MAX_GAMES] = {0};

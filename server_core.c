@@ -7,9 +7,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "config.h"
+#include "def_n_struct.h"
 #include "client_manager.h"
-#include "communication.h"
+#include "network_interface.h"
 
 server_address server_info;
 
@@ -71,7 +71,7 @@ void *run_server() {
 
     if (strlen(server_info.ip_address) == 0) {
         server_address.sin_addr.s_addr = INADDR_ANY;
-        printf("Server is running at INADDR_ANY (all available addresses)\n");
+        printf("Server is running at %s (all available addresses)\n", server_info.ip_address);
     } else {
         server_address.sin_addr.s_addr = inet_addr(server_info.ip_address);
         printf("Server IP: %s\n", server_info.ip_address);

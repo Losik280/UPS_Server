@@ -1,7 +1,7 @@
-#include "game_logic.h"
-#include "game_manager.h"
+#include "rules_engine.h"
+#include "match_manager.h"
 #include "client_manager.h"
-#include "communication.h"
+#include "network_interface.h"
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -2,8 +2,8 @@
 #define __CLIENT_MANAGER_H__
 
 #include <pthread.h>
-#include "config.h"
-#include "game_manager.h"
+#include "def_n_struct.h"
+#include "match_manager.h"
 
 // clients mutex
 extern pthread_mutex_t clients_mutex;

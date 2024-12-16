@@ -1,7 +1,7 @@
 #ifndef __COMMUNICATION_H__
 #define __COMMUNICATION_H__
 
-#include "config.h"
+#include "def_n_struct.h"
 
 /**
  * @brief Send message to the client

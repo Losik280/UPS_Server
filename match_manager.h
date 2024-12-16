@@ -4,7 +4,7 @@
 #ifndef __GAME_MANAGER_H__
 #define __GAME_MANAGER_H__
 
-#include "config.h"
+#include "def_n_struct.h"
 
 /**
  * @brief Mutex for the games array
