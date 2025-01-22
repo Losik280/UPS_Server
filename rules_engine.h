@@ -20,7 +20,7 @@ int validate_move(client *cl, int to_x, int to_y);
  * @param y y coordinate (last move)
  * @return 0 game is not finished, 1 game wins someone, 2 game is draw
  */
-int validate_game_status(client *cl, int to_x, int to_y);
+int check_available_moves(client *cl, int to_x, int to_y);
 
 void apply_move(game *g, client *cl, int to_x, int to_y);
 

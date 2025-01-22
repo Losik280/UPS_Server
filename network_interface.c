@@ -151,13 +151,13 @@ void serve_message(client *cl, char *message) {
         int to_y = atoi(strtok(NULL, MESS_DELIMITER));
         int move_status = validate_move(cl, to_x, to_y);
 
-        int game_status = validate_game_status(cl,  to_x, to_y);
+        int game_status = check_available_moves(cl, to_x, to_y);
 
         move_response(cl, move_status,  to_x, to_y);
 
 
         game_status_response(cl, game_status);
-    } else if (strcmp(token, "WANT_GAME") == 0) {
+    } else if (strcmp(token, "JOIN_GAME") == 0) {
         want_game_response(cl);
     } else if (strcmp(token, "LOGOUT") == 0) {
         if (cl->opponent != NULL) {
@@ -172,7 +172,7 @@ void serve_message(client *cl, char *message) {
     } else if (strcmp(token, "PONG") == 0) {
         printf("PONG - Client %d is connected\n", cl->id);
         client_ping(cl, 1);
-    } else if (strcmp(token, "OPP_DISCONNECTED") == 0) {
+    } else if (strcmp(token, "WAIT_REPLY") == 0) {
         token = strtok(NULL, MESS_DELIMITER);
         serve_opp_disconnected(cl, token);
     } else {
@@ -297,9 +297,9 @@ void want_game_response(client *cl) {
 
     char response[WANT_GAME_RESP_SIZE] = {0};
     if (found == FALSE) {
-        sprintf(response, "WANT_GAME;%c\n", FIRST_PL_CHAR);
+        sprintf(response, "JOIN_GAME;%c\n", FIRST_PL_CHAR);
     } else {
-        sprintf(response, "WANT_GAME;%c\n", SECOND_PL_CHAR);
+        sprintf(response, "JOIN_GAME;%c\n", SECOND_PL_CHAR);
     }
     send_mess(cl, response);
 

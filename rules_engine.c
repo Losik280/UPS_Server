@@ -6,62 +6,6 @@
 #include <stdlib.h>
 
 
-//int validate_game_status(client *cl, int to_x, int to_y) {
-////    game *g = get_game_by_id(cl->current_game_id);
-////    pthread_mutex_lock(&mutex_games);
-////    // look from the last move to all directions
-////    int directions[4][2] = {
-////            {1, 0},  // horizontal
-////            {0, 1},  // vertical
-////            {1, 1},  // diagonal (/)
-////            {1, -1}  // diagonal (\)
-////    };
-////
-////    for (int i = 0; i < 4; i++) {
-////        int dx = directions[i][0];
-////        int dy = directions[i][1];
-////        int count = count_in_direction(cl->client_char, from_x, from_y, dx, dy, g);
-////
-////        // if number of player's chars in the direction is equal or
-////        //   higher to WINNING_LENGTH, player wins
-////        if (count >= WINNING_LENGTH) {
-////            g->game_status = GAME_OVER;
-////            g->winner = cl;
-////            pthread_mutex_unlock(&mutex_games);
-////            return GAME_WIN;
-////        }
-////    }
-////
-////    // check if the board is full
-////    int empty_fields = 0;
-////    for (int i = 0; i < BOARD_SIZE; i++) {
-////        for (int j = 0; j < BOARD_SIZE; j++) {
-////            if (g->board[i][j] == EMPTY_CHAR) {
-////                empty_fields++;
-////            }
-////        }
-////    }
-////    if (empty_fields == 0) {
-////        g->game_status = GAME_OVER;
-////        g->winner = NULL;
-////        pthread_mutex_unlock(&mutex_games);
-////        return GAME_DRAW;
-////    }
-////
-////    pthread_mutex_unlock(&mutex_games);
-//
-//
-//
-//    //check if the player on move has available moves
-//
-//    //if there are no more available moves, the game is over, count the score of both players and decide the result of the game
-//
-//
-//
-////TODO check if the game is over
-//    return 0;
-//}
-
 /**
  * Helper function to check if a move is valid for a player in a specific direction.
  */
@@ -93,19 +37,34 @@ client *get_opponent_client(client *cl, game *g) {
     return (cl == g->player1) ? g->player2 : g->player1;
 }
 
-int validate_game_status(client *cl, int to_x, int to_y) {
+/**
+ * @brief Validates the game status for the given client.
+ *
+ * This function checks if the current player has any available moves. If no moves are available,
+ * it ends the game and determines the winner based on the current board state.
+ *
+ * @param cl Pointer to the client structure.
+ * @param to_x The x-coordinate of the move.
+ * @param to_y The y-coordinate of the move.
+ * @return int Returns GAME_WIN if the game is won, GAME_DRAW if it's a draw, or 0 if the game continues.
+ */
+int check_available_moves(client *cl, int to_x, int to_y) {
     game *g = get_game_by_id(cl->current_game_id);
     pthread_mutex_lock(&mutex_games);
 
-    //switch the player for opponent
+    // Switch the player for opponent
     cl = get_opponent_client(cl, g);
 
     // Define directions: horizontal, vertical, and diagonals
     int directions[8][2] = {
-            {1, 0}, {-1, 0},  // Horizontal
-            {0, 1}, {0, -1},  // Vertical
-            {1, 1}, {-1, -1}, // Diagonal (\)
-            {1, -1}, {-1, 1}  // Diagonal (/)
+            {1,  0},
+            {-1, 0},  // Horizontal
+            {0,  1},
+            {0,  -1},  // Vertical
+            {1,  1},
+            {-1, -1}, // Diagonal (\)
+            {1,  -1},
+            {-1, 1}  // Diagonal (/)
     };
 
     // Check if the current player has available moves
@@ -162,16 +121,20 @@ int validate_game_status(client *cl, int to_x, int to_y) {
 }
 
 
-
-
-
-
-
-
+/**
+ * @brief Validates a move for the given client.
+ *
+ * This function checks if the move to the specified coordinates is valid for the current player.
+ * It ensures the move is within the board, the target field is empty, and the move encloses
+ * the opponent's pieces in any direction.
+ *
+ * @param cl Pointer to the client structure.
+ * @param to_x The x-coordinate of the move.
+ * @param to_y The y-coordinate of the move.
+ * @return int Returns TRUE if the move is valid, INVALID_MOVE if the move is invalid,
+ *         GAME_NOT_FOUND if the game is not found, or NOT_MY_TURN if it's not the client's turn.
+ */
 int validate_move(client *cl, int to_x, int to_y) {
-    // Debugging: print the arguments
-//    printf("from_x: %d, from_y: %d, to_x: %d, to_y: %d\n", to_x, to_y);
-
     // Fetch the game by client ID
     game *g = get_game_by_id(cl->current_game_id);
     if (g == NULL) {
@@ -241,6 +204,17 @@ int validate_move(client *cl, int to_x, int to_y) {
     return valid ? TRUE : INVALID_MOVE;
 }
 
+/**
+ * @brief Applies a move for the given client.
+ *
+ * This function updates the game board by placing the client's piece at the specified coordinates
+ * and flipping the opponent's pieces that are enclosed by the move.
+ *
+ * @param g Pointer to the game structure.
+ * @param cl Pointer to the client structure.
+ * @param to_x The x-coordinate of the move.
+ * @param to_y The y-coordinate of the move.
+ */
 void apply_move(game *g, client *cl, int to_x, int to_y) {
     int directions[8][2] = {
             {0,  1},
@@ -280,10 +254,9 @@ void apply_move(game *g, client *cl, int to_x, int to_y) {
         }
     }
 
-
     g->board[to_y][to_x] = cl->client_char;
 
-    //print the board
+    // Print the board
     for (int i = 0; i < BOARD_SIZE; i++) {
         for (int j = 0; j < BOARD_SIZE; j++) {
             char pom = g->board[i][j];
