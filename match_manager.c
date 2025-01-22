@@ -107,7 +107,8 @@ void display_active_games() {
     printf("Games: \n");
     for (int i = 0; i < MAX_GAMES; i++) {
         if (g_gamesArr[i] != NULL) {
-            printf("    Game: %d; Player 1: %d; Player 2: %d\n", g_gamesArr[i]->id, g_gamesArr[i]->player1->id, g_gamesArr[i]->player2->id);
+            printf("    Game: %d; Player 1: %d; Player 2: %d\n", g_gamesArr[i]->id, g_gamesArr[i]->player1->id,
+                   g_gamesArr[i]->player2->id);
         }
     }
     pthread_mutex_unlock(&g_gamesMutex);
@@ -117,7 +118,8 @@ int purge_finished_game(client *cl) {
     pthread_mutex_lock(&g_gamesMutex);
 
     for (int i = 0; i < MAX_GAMES; i++) {
-        if (g_gamesArr[i] != NULL && g_gamesArr[i]->id == cl->active_game_id && g_gamesArr[i]->game_status == GAME_OVER) {
+        if (g_gamesArr[i] != NULL && g_gamesArr[i]->id == cl->active_game_id &&
+            g_gamesArr[i]->game_status == GAME_OVER) {
             free(g_gamesArr[i]);
             g_gamesArr[i] = NULL;
             pthread_mutex_unlock(&g_gamesMutex);

@@ -3,7 +3,6 @@
 #include <stdio.h>
 
 
-
 /**
  * Helper function to check if a move is valid for a player in a specific direction.
  */

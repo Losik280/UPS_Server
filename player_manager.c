@@ -260,7 +260,6 @@ int detach_client(client *cl) {
 }
 
 
-
 /**
  * The main thread function that initiates communication with the client,
  * sends an initial LOGIN message, and continuously processes incoming data.
@@ -269,7 +268,7 @@ int detach_client(client *cl) {
  * @return A void pointer (unused)
  */
 void *client_thread_main(void *arg) {
-    client *pClient = (client *)arg;
+    client *pClient = (client *) arg;
 
     char tempBuff[LOGIN_MESSAGE_RESP_SIZE] = {0};
     sprintf(tempBuff, "LOGIN;%s\n", pClient->username);
