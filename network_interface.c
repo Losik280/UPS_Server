@@ -7,228 +7,313 @@
 #include "player_manager.h"
 #include "rules_engine.h"
 
-void game_status_response(client *cl, int status) {
-    char response[GAME_STATUS_RESP_SIZE] = {0};
+/**
+ * A helper function that sends RECONNECT details if the client was in a game.
+ * Not declared in the header, as it's used only internally here.
+ *
+ * @param cl Pointer to the client
+ */
+void reconnect_message(client *cl) {
+    game *theGame = locate_game_for_client(cl);
 
-    if (status == GAME_WIN) {
-        sprintf(response, "GAME_STATUS;%s\n", cl->username);
-        if (cl->opponent != NULL) {
-            send_mess(cl->opponent, response);
-            reset_client_game_data(cl->opponent);
+    if (theGame == NULL) {
+        printf("Game not found\n");
+    } else {
+        // Rebuild the board state for both players
+        char response[RECONNECT_MESSAGE_SIZE] = {0};
+        sprintf(response, "RECONNECT;");
+
+        for (int row = 0; row < BOARD_SIZE; row++) {
+            for (int col = 0; col < BOARD_SIZE; col++) {
+                sprintf(response + strlen(response), "%c", theGame->board[row][col]);
+            }
         }
-//        send_mess(cl->opponent, response);
-        send_mess(cl, response);
-        remove_game(cl);
-        reset_client_game_data(cl);
-    } else if (status == GAME_DRAW) {
-        sprintf(response, "GAME_STATUS;DRAW\n");
-        if (cl->opponent != NULL) {
-            send_mess(cl->opponent, response);
-            reset_client_game_data(cl->opponent);
-        }
-        send_mess(cl, response);
-        remove_game(cl);
-        reset_client_game_data(cl);
+
+        sprintf(response + strlen(response), ";%s;%s;", theGame->current_player->username, cl->opponent->username);
+
+        char oppResponse[RECONNECT_MESSAGE_SIZE] = {0};
+        strcpy(oppResponse, response);
+
+        sprintf(response + strlen(response), "%c\n", cl->opponent->client_char);
+        sprintf(oppResponse + strlen(oppResponse), "%c\n", cl->client_char);
+
+        printf("Response: %s\n", response);
+        transmit_message(cl, response);
+        transmit_message(cl->opponent, oppResponse);
     }
 }
 
+/**
+ * Declares that a client wants to participate in a game
+ * and sends a response to the client if an opponent is found.
+ *
+ * @param cl Pointer to the client struct
+ */
+void handle_game_request(client *cl) {
+    printf("Client %d wants to play\n", cl->id);
+    set_game_request(cl, TRUE);
+    int matchFound = match_waiting_opponent(cl);
+
+    char response[WANT_GAME_RESP_SIZE] = {0};
+    if (matchFound == FALSE) {
+        sprintf(response, "JOIN_GAME;%c\n", FIRST_PL_CHAR);
+    } else {
+        sprintf(response, "JOIN_GAME;%c\n", SECOND_PL_CHAR);
+    }
+    transmit_message(cl, response);
+
+    if (matchFound == TRUE) {
+        // Start the game
+        char startMsg[START_GAME_MESSAGE_SIZE] = {0};
+        sprintf(startMsg, "START_GAME;%s;%c;%c\n",
+                cl->opponent->username,
+                cl->opponent->client_char,
+                cl->is_in_game ? '1' : '0');
+        transmit_message(cl, startMsg);
+    }
+}
+
+/**
+ * A local helper function (not in .h) used for quickly sending partial game status
+ * messages (e.g., for "WAIT" or forced draw). Not exposed in the header.
+ */
 void ping_game_status_response(client *cl, int status) {
     char response[GAME_STATUS_RESP_SIZE] = {0};
+
     if (status == GAME_WIN) {
         sprintf(response, "GAME_STATUS;%s\n", cl->username);
-        send_mess(cl, response);
+        transmit_message(cl, response);
     } else if (status == GAME_DRAW) {
         sprintf(response, "GAME_STATUS;DRAW\n");
-        send_mess(cl, response);
+        transmit_message(cl, response);
     }
 }
 
-void move_response(client *cl, int status, int x, int y) {
+/**
+ * Processes an incoming message from a particular client and executes the necessary logic.
+ *
+ * @param cl Pointer to the client struct that sent the message
+ * @param message The message itself
+ */
+void process_client_message(client *cl, char *message) {
+    // Read the first token to determine the type of message
+    char *token = strtok(message, MESS_DELIMITER);
+
+    if (strcmp(token, "MOVE") == 0) {
+        // Extract coordinates
+        int toX = atoi(strtok(NULL, MESS_DELIMITER));
+        int toY = atoi(strtok(NULL, MESS_DELIMITER));
+
+        int moveStatus = validate_move(cl, toX, toY);
+        int finalStatus = check_available_moves(cl);
+
+        respond_to_move(cl, moveStatus, toX, toY);
+        notify_game_status(cl, finalStatus);
+
+    } else if (strcmp(token, "JOIN_GAME") == 0) {
+        handle_game_request(cl);
+
+    } else if (strcmp(token, "LOGOUT") == 0) {
+        if (cl->opponent != NULL) {
+            game *clientGame = locate_game_for_client(cl);
+            clientGame->game_status = GAME_OVER;
+            notify_game_status(cl->opponent, GAME_WIN);
+        }
+        pthread_t localThread = *cl->client_thread;
+        detach_client(cl);
+        pthread_join(localThread, NULL);
+
+    } else if (strcmp(token, "PONG") == 0) {
+        printf("PONG - Client %d is connected\n", cl->id);
+        update_client_ping(cl, 1);
+
+    } else if (strcmp(token, "WAIT_REPLY") == 0) {
+        token = strtok(NULL, MESS_DELIMITER);
+        // handle WAIT or NOT_WAIT
+        if (strncmp(token, "WAIT", 4) == 0) {
+            // The client chooses to wait
+            printf("Client %d waits for opponent %d\n", cl->id, cl->opponent->id);
+        } else {
+            // The client does not wait
+            ping_game_status_response(cl, GAME_DRAW);
+            pthread_mutex_lock(&clients_mutex);
+            if (cl->opponent != NULL) {
+                cl->opponent->opponent = NULL;
+            }
+            pthread_mutex_unlock(&clients_mutex);
+
+            reset_client_game_data(cl);
+            printf("Serve opp disconnected: %d game cleaned\n", cl->id);
+        }
+
+    } else {
+        // Invalid message, remove the client
+        printf("Invalid message -> remove\n");
+        pthread_t localThread = *cl->client_thread;
+        detach_client(cl);
+        pthread_join(localThread, NULL);
+    }
+}
+
+/**
+ * Sends feedback to the client (and possibly the opponent) after a move attempt,
+ * indicating whether the move was valid and where it occurred.
+ *
+ * @param cl Pointer to the client that made the move
+ * @param status Indicates success (TRUE) or an invalid move
+ * @param x The x-coordinate of the move
+ * @param y The y-coordinate of the move
+ */
+void respond_to_move(client *cl, int status, int x, int y) {
     char response[MOVE_MESS_RESP_SIZE] = {0};
 
     if (status == TRUE) {
         sprintf(response, "MOVE;%c;%c;%c\n", status + '0', x + '0', y + '0');
-        send_mess(cl, response);
+        transmit_message(cl, response);
 
         if (cl->opponent != NULL) {
-            char mess[OPP_MOVE_MESSAGE_SIZE] = {0};
-            sprintf(mess, "OPP_MOVE;%c;%c\n", x + '0', y + '0');
-            send_mess(cl->opponent, mess);
+            char oppMsg[OPP_MOVE_MESSAGE_SIZE] = {0};
+            sprintf(oppMsg, "OPP_MOVE;%c;%c\n", x + '0', y + '0');
+            transmit_message(cl->opponent, oppMsg);
         }
     } else {
         sprintf(response, "MOVE;%c;0;0\n", status + '0');
-        send_mess(cl, response);
+        transmit_message(cl, response);
     }
 }
 
-void serve_opp_disconnected(client *cl, char *token) {
-    if (strncmp(token, "WAIT", 4) == 0) {
-        // client wants to wait for opponent -> do nothing
-        printf("Client %d waits for opponent %d\n", cl->id, cl->opponent->id);
-    } else {
-        ping_game_status_response(cl, GAME_DRAW);
+/**
+ * Sends a game status notification to the client (e.g., draw or win).
+ *
+ * @param cl Pointer to the client to notify
+ * @param status The final status of the game (e.g., GAME_DRAW, GAME_WIN)
+ */
+void notify_game_status(client *cl, int status) {
+    char response[GAME_STATUS_RESP_SIZE] = {0};
 
-        // remove client connection to the game and his opponent
-        pthread_mutex_lock(&clients_mutex);
-        cl->opponent->opponent = NULL;
-        pthread_mutex_unlock(&clients_mutex);
-
-        printf("Serve opp disconnected: %d ping status response has been sent\n", cl->id);
-
+    if (status == GAME_WIN) {
+        sprintf(response, "GAME_STATUS;%s\n", cl->username);
+        if (cl->opponent != NULL) {
+            transmit_message(cl->opponent, response);
+            reset_client_game_data(cl->opponent);
+        }
+        transmit_message(cl, response);
+        purge_finished_game(cl);
         reset_client_game_data(cl);
-        printf("Serve opp disconnected: %d game cleaned\n", cl->id);
+
+    } else if (status == GAME_DRAW) {
+        sprintf(response, "GAME_STATUS;DRAW\n");
+        if (cl->opponent != NULL) {
+            transmit_message(cl->opponent, response);
+            reset_client_game_data(cl->opponent);
+        }
+        transmit_message(cl, response);
+        purge_finished_game(cl);
+        reset_client_game_data(cl);
     }
 }
 
 
-void receive_messages(client *cl) {
-//    client *cl = (client *) arg;
+/**
+ * Sends a message to a client using its client structure.
+ *
+ * @param client Pointer to the recipient's client struct
+ * @param mess The text to send
+ * @return A void pointer (unused)
+ */
+void *transmit_message(client *client, char *mess) {
+    printf("Sending client: %d -> message: %s", client->id, mess);
+    int sockDesc = client->socket;
+    send(sockDesc, mess, strlen(mess), 0);
+    return NULL;
+}
+
+/**
+ * Sends a message to a client, identified only by its socket descriptor.
+ *
+ * @param socket The socket descriptor of the destination client
+ * @param mess The text to send
+ * @return A void pointer (unused)
+ */
+void *transmit_message_by_socket(int socket, char *mess) {
+    printf("Sending message: %s", mess);
+    send(socket, mess, strlen(mess), 0);
+    return NULL;
+}
+
+/**
+ * Continuously listens for and processes incoming messages from the given client.
+ *
+ * @param cl Pointer to the client
+ */
+void listen_for_messages(client *cl) {
     int client_socket = cl->socket;
-    char message[MESSAGE_SIZE] = {0};
-    int valread;
+    char buffer[MESSAGE_SIZE] = {0};
+    int bytesRead;
+
     while (1) {
-        valread = recv(client_socket, message, sizeof(message), 0);
-        if (valread <= 0) {
+        bytesRead = recv(client_socket, buffer, sizeof(buffer), 0);
+        if (bytesRead <= 0) {
             printf("Client must be disconnected...\n");
             close(client_socket);
             detach_client(cl);
             break;
         }
         printf("Client: %d sent message", cl->id);
-        serve_message(cl, message);
-        memset(message, 0, sizeof(message));
-        valread = 0;
+        process_client_message(cl, buffer);
+
+        memset(buffer, 0, sizeof(buffer));
     }
     printf("Client thread ends\n");
 }
 
-void reconnect_message(client *cl) {
-    game *cl_game = find_client_game(cl);
-
-    // game not found -> send want game message
-    if (cl_game == NULL) {
-        printf("Game not found\n");
-    } else {
-        // game found -> send reconnect message
-        char response[RECONNECT_MESSAGE_SIZE] = {0};
-        // format: RECONNECT;board;current_player;opponent
-        sprintf(response, "RECONNECT;");
-
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                sprintf(response + strlen(response), "%c", cl_game->board[i][j]);
-            }
-        }
-
-        sprintf(response + strlen(response), ";%s;%s;", cl_game->current_player->username, cl->opponent->username);
-        char opp_response[RECONNECT_MESSAGE_SIZE] = {0};
-        strcpy(opp_response, response);
-
-        sprintf(response + strlen(response), "%c\n", cl->opponent->client_char);
-        sprintf(opp_response + strlen(opp_response), "%c\n", cl->client_char);
-
-        printf("Response: %s\n", response);
-        send_mess(cl, response);
-        send_mess(cl->opponent, opp_response);
-    }
-}
-
-void *send_mess(client *client, char *mess) {
-    printf("Sending client: %d -> message: %s", client->id, mess);
-    int client_socket = client->socket;
-    send(client_socket, mess, strlen(mess), 0);
-    return NULL;
-}
-
-void serve_message(client *cl, char *message) {
-    // get the first token
-    char *token = strtok(message, MESS_DELIMITER);
-
-    // check message type
-    if (strcmp(token, "MOVE") == 0) {
-        // get the second token
-        int to_x = atoi(strtok(NULL, MESS_DELIMITER));
-        int to_y = atoi(strtok(NULL, MESS_DELIMITER));
-        int move_status = validate_move(cl, to_x, to_y);
-
-        int game_status = check_available_moves(cl, to_x, to_y);
-
-        move_response(cl, move_status,  to_x, to_y);
-
-
-        game_status_response(cl, game_status);
-    } else if (strcmp(token, "JOIN_GAME") == 0) {
-        want_game_response(cl);
-    } else if (strcmp(token, "LOGOUT") == 0) {
-        if (cl->opponent != NULL) {
-            game *cl_game = find_client_game(cl);
-            cl_game->game_status = GAME_OVER;
-            game_status_response(cl->opponent, GAME_WIN);
-        }
-
-        pthread_t thread = *cl->client_thread;
-        detach_client(cl);
-        pthread_join(thread, NULL);
-    } else if (strcmp(token, "PONG") == 0) {
-        printf("PONG - Client %d is connected\n", cl->id);
-        update_client_ping(cl, 1);
-    } else if (strcmp(token, "WAIT_REPLY") == 0) {
-        token = strtok(NULL, MESS_DELIMITER);
-        serve_opp_disconnected(cl, token);
-    } else {
-        printf("Invalid message -> remove\n");
-        pthread_t thread = *cl->client_thread;
-        detach_client(cl);
-        pthread_join(thread, NULL);
-    }
-}
-
-void *send_mess_by_socket(int socket, char *mess) {
-    printf("Sending message: %s", mess);
-    send(socket, mess, strlen(mess), 0);
-    return NULL;
-}
-
-void *run_ping() {
+/**
+ * Periodically checks whether clients are still responsive and handles reconnection or removal.
+ *
+ * @return A void pointer (unused)
+ */
+void *monitor_client_pings() {
     pthread_mutex_lock(&clients_mutex);
-    int i;
+
     while (1) {
-        for (i = 0; i < MAX_CLIENTS; i++) {
+        // First pass: set is_connected to 0, send PING to each client
+        for (int i = 0; i < MAX_CLIENTS; i++) {
             if (clients[i] != NULL) {
                 clients[i]->is_connected = 0;
-                send_mess_by_socket(clients[i]->socket, "PING\n");
+                transmit_message_by_socket(clients[i]->socket, "PING\n");
             }
         }
         pthread_mutex_unlock(&clients_mutex);
 
         sleep(PING_SLEEP);
 
-        // control whether clients response
+        // Second pass: check who responded
         pthread_mutex_lock(&clients_mutex);
-        for (i = 0; i < MAX_CLIENTS; i++) {
+        for (int i = 0; i < MAX_CLIENTS; i++) {
             if (clients[i] != NULL) {
                 printf("Run ping: client %d is connected: %d\n", clients[i]->id, clients[i]->is_connected);
-                // if client is not connected and last ping was more than PING_ZOMBIE seconds ago -> remove client
+
+                // If the client is unresponsive for too long -> remove
                 if (clients[i]->is_connected == 0 && clients[i]->last_ping + PING_ZOMBIE < time(NULL)) {
                     printf("Run ping: Client %d disconnected\n", clients[i]->id);
 
-                    pthread_t thread = *clients[i]->client_thread;
+                    pthread_t localThread = *clients[i]->client_thread;
 
+                    // Possibly inform the opponent
                     if (clients[i]->opponent != NULL) {
-                        // opponent waits for the client -> send game status message
                         printf("Run ping: MUST SEND GAME STATUS TO OPPONENT\n");
                         pthread_mutex_unlock(&clients_mutex);
                         ping_game_status_response(clients[i]->opponent, GAME_WIN);
                         pthread_mutex_lock(&clients_mutex);
                     }
 
+                    // Remove the game if not already removed
                     if (clients[i]->active_game_id != GAME_NULL_ID) {
-                        // game is not removed -> remove it
-                        game *cl_game = find_client_game(clients[i]);
-                        pthread_mutex_lock(&mutex_games);
-                        cl_game->game_status = GAME_OVER;
-                        pthread_mutex_unlock(&mutex_games);
-                        remove_game(clients[i]);
+                        game *cGame = locate_game_for_client(clients[i]);
+                        pthread_mutex_lock(&g_gamesMutex);
+                        cGame->game_status = GAME_OVER;
+                        pthread_mutex_unlock(&g_gamesMutex);
+                        purge_finished_game(clients[i]);
 
                         pthread_mutex_unlock(&clients_mutex);
                         if (clients[i]->opponent != NULL) {
@@ -238,49 +323,45 @@ void *run_ping() {
                         pthread_mutex_lock(&clients_mutex);
                     }
 
+                    // Finally remove the client
                     pthread_mutex_unlock(&clients_mutex);
                     detach_client(clients[i]);
-                    pthread_cancel(thread);
+                    pthread_cancel(localThread);
                     pthread_mutex_lock(&clients_mutex);
                     printf("Run ping:  Client removed\n");
-                }
 
-                    // if client is connected and need reconnect message
-                else if (clients[i]->is_connected && clients[i]->need_reconnect_mess == 1) {
+                    // If the client is connected but needs a reconnection message
+                } else if (clients[i]->is_connected && clients[i]->need_reconnect_mess == 1) {
                     printf("Run ping: NEED RECONNECT MESSAGE\n");
                     clients[i]->need_reconnect_mess = 0;
 
-                    // opponent is connected (waits) -> send reconnect message
                     if (clients[i]->opponent != NULL) {
                         pthread_mutex_unlock(&clients_mutex);
-
                         reconnect_message(clients[i]);
-
                         pthread_mutex_lock(&clients_mutex);
-                    } else if (clients[i]->is_requesting_game == FALSE) {
-                        // opponent is not connected in game (did not want to wait) -> send game status message
-                        char response[GAME_STATUS_RESP_SIZE] = {0};
-                        sprintf(response, "GAME_STATUS;OPP_DISCONNECTED\n");
-                        pthread_mutex_unlock(&clients_mutex);
-                        send_mess_by_socket(clients[i]->socket, response);
 
-                        game *cl_game = find_client_game(clients[i]);
-                        pthread_mutex_lock(&mutex_games);
-                        cl_game->game_status = GAME_OVER;
-                        pthread_mutex_unlock(&mutex_games);
-                        remove_game(clients[i]);
+                    } else if (clients[i]->is_requesting_game == FALSE) {
+                        // Opponent is not there -> remove the game and notify client
+                        char tmpResponse[GAME_STATUS_RESP_SIZE] = {0};
+                        sprintf(tmpResponse, "GAME_STATUS;OPP_DISCONNECTED\n");
+                        pthread_mutex_unlock(&clients_mutex);
+                        transmit_message_by_socket(clients[i]->socket, tmpResponse);
+
+                        game *cGame = locate_game_for_client(clients[i]);
+                        pthread_mutex_lock(&g_gamesMutex);
+                        cGame->game_status = GAME_OVER;
+                        pthread_mutex_unlock(&g_gamesMutex);
+                        purge_finished_game(clients[i]);
 
                         reset_client_game_data(clients[i]);
                         pthread_mutex_lock(&clients_mutex);
                     }
-                    // else -> client is in waiting state -> do nothing
                 }
-
-                    // if client is not connected, but still no zombie time, set need_reconnect_mess to 1
+                    // If client didn't respond yet, but not zombie timed out, set need_reconnect_mess = 1
                 else if (clients[i]->is_connected == 0) {
                     printf("Run ping: SET NEED RECONNECT MESSAGE\n");
                     if (clients[i]->opponent != NULL && clients[i]->need_reconnect_mess == 0) {
-                        send_mess_by_socket(clients[i]->opponent->socket, "OPP_DISCONNECTED\n");
+                        transmit_message_by_socket(clients[i]->opponent->socket, "OPP_DISCONNECTED\n");
                     }
                     clients[i]->need_reconnect_mess = 1;
                 }
@@ -290,24 +371,5 @@ void *run_ping() {
     }
 }
 
-void want_game_response(client *cl) {
-    printf("Client %d wants to play\n", cl->id);
-    set_game_request(cl, TRUE);
-    int found = match_waiting_opponent(cl);
 
-    char response[WANT_GAME_RESP_SIZE] = {0};
-    if (found == FALSE) {
-        sprintf(response, "JOIN_GAME;%c\n", FIRST_PL_CHAR);
-    } else {
-        sprintf(response, "JOIN_GAME;%c\n", SECOND_PL_CHAR);
-    }
-    send_mess(cl, response);
 
-    if (found == TRUE) {
-        // Start the game
-        char game_response[START_GAME_MESSAGE_SIZE] = {0};
-        sprintf(game_response, "START_GAME;%s;%c;%c\n", cl->opponent->username, cl->opponent->client_char,
-                cl->is_in_game ? '1' : '0');
-        send_mess(cl, game_response);
-    }
-}

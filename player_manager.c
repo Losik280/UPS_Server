@@ -156,7 +156,7 @@ int match_waiting_opponent(client *cl) {
             clients[idx]->is_requesting_game == TRUE) {
 
             // Create a game with the first waiting client
-            game *newMatch = create_new_game(clients[idx], cl);
+            game *newMatch = initiate_game_session(clients[idx], cl);
             if (newMatch == NULL) {
                 break;
             }
@@ -181,7 +181,7 @@ int match_waiting_opponent(client *cl) {
                     clients[idx]->opponent->username,
                     clients[idx]->opponent->client_char,
                     clients[idx]->is_in_game ? '1' : '0');
-            send_mess(clients[idx], buffer);
+            transmit_message(clients[idx], buffer);
 
             wasFound = TRUE;
             break;
@@ -273,10 +273,10 @@ void *client_thread_main(void *arg) {
 
     char tempBuff[LOGIN_MESSAGE_RESP_SIZE] = {0};
     sprintf(tempBuff, "LOGIN;%s\n", pClient->username);
-    send_mess(pClient, tempBuff);
+    transmit_message(pClient, tempBuff);
 
     // This function does not return until the client disconnects or an error occurs
-    receive_messages(pClient);
+    listen_for_messages(pClient);
     return NULL;
 }
 

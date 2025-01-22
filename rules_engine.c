@@ -1,9 +1,7 @@
 #include "rules_engine.h"
 #include "match_manager.h"
-#include "player_manager.h"
-#include "network_interface.h"
 #include <stdio.h>
-#include <stdlib.h>
+
 
 
 /**
@@ -48,9 +46,9 @@ client *get_opponent_client(client *cl, game *g) {
  * @param to_y The y-coordinate of the move.
  * @return int Returns GAME_WIN if the game is won, GAME_DRAW if it's a draw, or 0 if the game continues.
  */
-int check_available_moves(client *cl, int to_x, int to_y) {
-    game *g = get_game_by_id(cl->active_game_id);
-    pthread_mutex_lock(&mutex_games);
+int check_available_moves(client *cl) {
+    game *g = fetch_game_by_id(cl->active_game_id);
+    pthread_mutex_lock(&g_gamesMutex);
 
     // Switch the player for opponent
     cl = get_opponent_client(cl, g);
@@ -101,21 +99,21 @@ int check_available_moves(client *cl, int to_x, int to_y) {
         // Determine the winner
         if (score_X > score_O) {
             g->winner = cl->client_char == 'R' ? get_opponent_client(cl, g) : cl;
-            pthread_mutex_unlock(&mutex_games);
+            pthread_mutex_unlock(&g_gamesMutex);
             return GAME_WIN;
         } else if (score_O > score_X) {
             g->winner = cl->client_char == 'B' ? get_opponent_client(cl, g) : cl;
-            pthread_mutex_unlock(&mutex_games);
+            pthread_mutex_unlock(&g_gamesMutex);
             return GAME_WIN;
         } else {
             g->winner = NULL; // It's a draw
-            pthread_mutex_unlock(&mutex_games);
+            pthread_mutex_unlock(&g_gamesMutex);
             return GAME_DRAW;
         }
     }
 
     // Game continues if the player has available moves
-    pthread_mutex_unlock(&mutex_games);
+    pthread_mutex_unlock(&g_gamesMutex);
 
     return 0;
 }
@@ -136,7 +134,7 @@ int check_available_moves(client *cl, int to_x, int to_y) {
  */
 int validate_move(client *cl, int to_x, int to_y) {
     // Fetch the game by client ID
-    game *g = get_game_by_id(cl->active_game_id);
+    game *g = fetch_game_by_id(cl->active_game_id);
     if (g == NULL) {
         return GAME_NOT_FOUND;
     }

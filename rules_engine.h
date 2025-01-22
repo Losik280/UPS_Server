@@ -1,5 +1,5 @@
-#ifndef __GAME_LOGIC_H__
-#define __GAME_LOGIC_H__
+#ifndef __RULES_ENGINE_H__
+#define __RULES_ENGINE_H__
 
 #include "def_n_struct.h"
 
@@ -28,7 +28,7 @@ int validate_move(client *cl, int to_x, int to_y);
  * @param y y coordinate (last move)
  * @return 0 game is not finished, 1 game wins someone, 2 game is draw
  */
-int check_available_moves(client *cl, int to_x, int to_y);
+int check_available_moves(client *cl);
 
 void apply_move(game *g, client *cl, int to_x, int to_y);
 

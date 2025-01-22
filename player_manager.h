@@ -1,5 +1,5 @@
-#ifndef __CLIENT_MANAGER_H__
-#define __CLIENT_MANAGER_H__
+#ifndef __PLAYER_MANAGER_H__
+#define __PLAYER_MANAGER_H__
 
 #include <pthread.h>
 #include "def_n_struct.h"

@@ -1,62 +1,73 @@
-#ifndef __COMMUNICATION_H__
-#define __COMMUNICATION_H__
+#ifndef __NETWORK_INTERFACE_H__
+#define __NETWORK_INTERFACE_H__
 
 #include "def_n_struct.h"
 
 /**
- * @brief Send message to the client
- * @param cl client to send message to
- * @param status status of the game
+ * Declares that a client wants to participate in a game
+ * and sends a response to the client if an opponent is found.
+ *
+ * @param cl Pointer to the client struct
  */
-void game_status_response(client *cl, int status);
+void handle_game_request(client *cl);
 
 /**
- * @brief Serve client playing game according to status
- * @param cl client that made move
- * @param status status of the move
- * @param x x coordinate
- * @param y y coordinate
+ * Processes an incoming message from a particular client and executes the necessary logic.
+ *
+ * @param cl Pointer to the client struct that sent the message
+ * @param message The message itself
  */
-void move_response(client *cl, int status, int x, int y);
+void process_client_message(client *cl, char *message);
 
 /**
- * @brief Consider message from the client
- * @param cl client that sent the message
- * @param message message from the client
+ * Sends feedback to the client (and possibly the opponent) after a move attempt,
+ * indicating whether the move was valid and where it occurred.
+ *
+ * @param cl Pointer to the client that made the move
+ * @param status Indicates success (TRUE) or an invalid move
+ * @param x The x-coordinate of the move
+ * @param y The y-coordinate of the move
  */
-void serve_message(client *cl, char *message);
+void respond_to_move(client *cl, int status, int x, int y);
 
 /**
- * @brief Send message to the client by socket
- * @return void
+ * Sends a game status notification to the client (e.g., draw or win).
+ *
+ * @param cl Pointer to the client to notify
+ * @param status The final status of the game (e.g., GAME_DRAW, GAME_WIN)
  */
-void *send_mess_by_socket(int socket, char *mess);
+void notify_game_status(client *cl, int status);
 
 /**
- * @brief Send message to the client
- * @return
+ * Sends a message to a client using its client structure.
+ *
+ * @param client Pointer to the recipient's client struct
+ * @param mess The text to send
+ * @return A void pointer (unused)
  */
-void *send_mess(client *client, char *mess);
+void *transmit_message(client *client, char *mess);
 
 /**
- * @brief Receive message from the client
- * @param client pointer
- * @return void pointer
+ * Sends a message to a client, identified only by its socket descriptor.
+ *
+ * @param socket The socket descriptor of the destination client
+ * @param mess The text to send
+ * @return A void pointer (unused)
  */
-//void *receive_messages(void *arg);
-void receive_messages(client *cl);
+void *transmit_message_by_socket(int socket, char *mess);
 
 /**
- * @brief Controls clients connection
- * @return void pointer
+ * Continuously listens for and processes incoming messages from the given client.
+ *
+ * @param cl Pointer to the client
  */
-void *run_ping();
+void listen_for_messages(client *cl);
 
 /**
- * @brief Send response to the client that wants to play
- * @param cl client that wants to play
+ * Periodically checks whether clients are still responsive and handles reconnection or removal.
+ *
+ * @return A void pointer (unused)
  */
-void want_game_response(client *cl);
-
+void *monitor_client_pings();
 
 #endif

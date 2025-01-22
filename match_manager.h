@@ -1,52 +1,62 @@
 /**
-* Define logic for the game Reversi|
-*/
-#ifndef __GAME_MANAGER_H__
-#define __GAME_MANAGER_H__
+ * @file match_manager.h
+ * @brief Defines high-level logic for Reversi g_gamesArr, including creation and removal of matches.
+ */
+
+#ifndef __MATCH_MANAGER_H__
+#define __MATCH_MANAGER_H__
 
 #include "def_n_struct.h"
+#include <pthread.h>
 
 /**
- * @brief Mutex for the games array
+ * A global mutex used to protect access to the `g_gamesArr` array.
  */
-extern pthread_mutex_t mutex_games;
+extern pthread_mutex_t g_gamesMutex;
 
 /**
- * @brief Creates a new game
- * @param player_1 player who started the game
- * @param player_2 player who joined the game
- * @return pointer to the created game
+ * Creates a new Reversi game between two clients.
+ *
+ * @param player_1 The first participant in the new game
+ * @param player_2 The second participant in the new game
+ * @return Pointer to the newly created game structure, or NULL if creation fails
  */
-game *create_new_game(client *player_1, client *player_2);
+game *initiate_game_session(client *player_1, client *player_2);
 
 /**
- * @brief Find the game by the client
- * @param cl client
- * @return pointer to the game or NULL if not found
+ * Searches for the game in which the specified client is currently participating.
+ *
+ * @param cl Pointer to a client structure
+ * @return Pointer to the corresponding game, or NULL if none is found
  */
-game *find_client_game(client *cl);
+game *locate_game_for_client(client *cl);
 
 /**
- * @brief Finds the game by its ID
- * @param id ID of the game
- * @return pointer to the game or NULL if not found
+ * Locates a game by its unique identifier.
+ *
+ * @param id Integer representing the game's ID
+ * @return Pointer to the game if found, or NULL otherwise
  */
-game *get_game_by_id(int id);
+game *fetch_game_by_id(int id);
 
 /**
- * @brief Creates and initialize the game board
- * @param board game board
- * @return initialized game board with empty fields
+ * Initializes the game board by filling in default Reversi starting positions.
+ *
+ * @param board A 2D array (BOARD_SIZE x BOARD_SIZE) representing the game board
  */
-void initialize_board(char board[BOARD_SIZE][BOARD_SIZE]);
+void setup_initial_board(char board[BOARD_SIZE][BOARD_SIZE]);
 
 /**
- * @brief Check if the game is ended and remove it
- * @param cl client who made last move
- * @return TRUE if the game was removed, FALSE if not found
+ * Removes a game from the global array if it is marked as finished by the specified client.
+ *
+ * @param cl The client who last interacted with the game
+ * @return TRUE if the game was found and removed, FALSE otherwise
  */
-int remove_game(client *cl);
+int purge_finished_game(client *cl);
 
-void print_games();
+/**
+ * Prints the details of all active g_gamesArr to stdout.
+ */
+void display_active_games();
 
 #endif
