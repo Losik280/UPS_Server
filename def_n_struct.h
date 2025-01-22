@@ -4,6 +4,23 @@
 #include <pthread.h>
 
 /**
+ * @brief Messages constants
+ */
+#define MESSAGE_SIZE 1024
+#define PLAYER_NAME_SIZE 21
+#define MESS_DELIMITER ";"
+#define MESS_END_CHAR "\n"
+#define LOGIN_MESSAGE_SIZE (8 + PLAYER_NAME_SIZE)
+#define LOGIN_MESSAGE_RESP_SIZE (9 + PLAYER_NAME_SIZE)
+#define WANT_GAME_RESP_SIZE 13
+#define START_GAME_MESSAGE_SIZE (16 + PLAYER_NAME_SIZE)
+#define MOVE_MESS_RESP_SIZE 12
+#define OPP_MOVE_MESSAGE_SIZE 14
+#define GAME_STATUS_RESP_SIZE (14 + PLAYER_NAME_SIZE)
+#define RECONNECT_MESSAGE_SIZE (BOARD_SIZE * BOARD_SIZE + 20 + PLAYER_NAME_SIZE + PLAYER_NAME_SIZE)
+
+
+/**
  * @brief Game constants
  */
 #define BOARD_SIZE 4
@@ -23,33 +40,11 @@
 #define PING_SLEEP 5
 #define PING_ZOMBIE 20
 
-/**
- * @brief Error states constants
- */
-// Move states
-#define GAME_NOT_FOUND 5
-#define NOT_MY_TURN 6
-#define INVALID_MOVE 7
-#define FIELD_TAKEN 8
+
 
 #define TRUE 1
 #define FALSE 0
 
-/**
- * @brief Messages constants
- */
-#define MESSAGE_SIZE 1024
-#define PLAYER_NAME_SIZE 21
-#define MESS_DELIMITER ";"
-#define MESS_END_CHAR "\n"
-#define LOGIN_MESSAGE_SIZE (8 + PLAYER_NAME_SIZE)
-#define LOGIN_MESSAGE_RESP_SIZE (9 + PLAYER_NAME_SIZE)
-#define WANT_GAME_RESP_SIZE 13
-#define START_GAME_MESSAGE_SIZE (16 + PLAYER_NAME_SIZE)
-#define MOVE_MESS_RESP_SIZE 12
-#define OPP_MOVE_MESSAGE_SIZE 14
-#define GAME_STATUS_RESP_SIZE (14 + PLAYER_NAME_SIZE)
-#define RECONNECT_MESSAGE_SIZE (BOARD_SIZE * BOARD_SIZE + 20 + PLAYER_NAME_SIZE + PLAYER_NAME_SIZE)
 
 /**
  * @brief Server constants
@@ -66,13 +61,13 @@ typedef struct client {
     int socket;
     int id;
     char username[PLAYER_NAME_SIZE];
-    int current_game_id;
-    int is_playing;
+    int active_game_id;
+    int is_in_game;
     int is_connected;
     int need_reconnect_mess;
     time_t last_ping;
     char client_char;
-    int want_game;
+    int is_requesting_game;
     client *opponent;
     pthread_t *client_thread;
 } client;

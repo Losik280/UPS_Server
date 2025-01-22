@@ -14,21 +14,21 @@ void game_status_response(client *cl, int status) {
         sprintf(response, "GAME_STATUS;%s\n", cl->username);
         if (cl->opponent != NULL) {
             send_mess(cl->opponent, response);
-            clean_client_game(cl->opponent);
+            reset_client_game_data(cl->opponent);
         }
 //        send_mess(cl->opponent, response);
         send_mess(cl, response);
         remove_game(cl);
-        clean_client_game(cl);
+        reset_client_game_data(cl);
     } else if (status == GAME_DRAW) {
         sprintf(response, "GAME_STATUS;DRAW\n");
         if (cl->opponent != NULL) {
             send_mess(cl->opponent, response);
-            clean_client_game(cl->opponent);
+            reset_client_game_data(cl->opponent);
         }
         send_mess(cl, response);
         remove_game(cl);
-        clean_client_game(cl);
+        reset_client_game_data(cl);
     }
 }
 
@@ -75,7 +75,7 @@ void serve_opp_disconnected(client *cl, char *token) {
 
         printf("Serve opp disconnected: %d ping status response has been sent\n", cl->id);
 
-        clean_client_game(cl);
+        reset_client_game_data(cl);
         printf("Serve opp disconnected: %d game cleaned\n", cl->id);
     }
 }
@@ -91,7 +91,7 @@ void receive_messages(client *cl) {
         if (valread <= 0) {
             printf("Client must be disconnected...\n");
             close(client_socket);
-            remove_client(cl);
+            detach_client(cl);
             break;
         }
         printf("Client: %d sent message", cl->id);
@@ -167,18 +167,18 @@ void serve_message(client *cl, char *message) {
         }
 
         pthread_t thread = *cl->client_thread;
-        remove_client(cl);
+        detach_client(cl);
         pthread_join(thread, NULL);
     } else if (strcmp(token, "PONG") == 0) {
         printf("PONG - Client %d is connected\n", cl->id);
-        client_ping(cl, 1);
+        update_client_ping(cl, 1);
     } else if (strcmp(token, "WAIT_REPLY") == 0) {
         token = strtok(NULL, MESS_DELIMITER);
         serve_opp_disconnected(cl, token);
     } else {
         printf("Invalid message -> remove\n");
         pthread_t thread = *cl->client_thread;
-        remove_client(cl);
+        detach_client(cl);
         pthread_join(thread, NULL);
     }
 }
@@ -222,7 +222,7 @@ void *run_ping() {
                         pthread_mutex_lock(&clients_mutex);
                     }
 
-                    if (clients[i]->current_game_id != GAME_NULL_ID) {
+                    if (clients[i]->active_game_id != GAME_NULL_ID) {
                         // game is not removed -> remove it
                         game *cl_game = find_client_game(clients[i]);
                         pthread_mutex_lock(&mutex_games);
@@ -232,14 +232,14 @@ void *run_ping() {
 
                         pthread_mutex_unlock(&clients_mutex);
                         if (clients[i]->opponent != NULL) {
-                            clean_client_game(clients[i]->opponent);
+                            reset_client_game_data(clients[i]->opponent);
                         }
-                        clean_client_game(clients[i]);
+                        reset_client_game_data(clients[i]);
                         pthread_mutex_lock(&clients_mutex);
                     }
 
                     pthread_mutex_unlock(&clients_mutex);
-                    remove_client(clients[i]);
+                    detach_client(clients[i]);
                     pthread_cancel(thread);
                     pthread_mutex_lock(&clients_mutex);
                     printf("Run ping:  Client removed\n");
@@ -257,7 +257,7 @@ void *run_ping() {
                         reconnect_message(clients[i]);
 
                         pthread_mutex_lock(&clients_mutex);
-                    } else if (clients[i]->want_game == FALSE) {
+                    } else if (clients[i]->is_requesting_game == FALSE) {
                         // opponent is not connected in game (did not want to wait) -> send game status message
                         char response[GAME_STATUS_RESP_SIZE] = {0};
                         sprintf(response, "GAME_STATUS;OPP_DISCONNECTED\n");
@@ -270,7 +270,7 @@ void *run_ping() {
                         pthread_mutex_unlock(&mutex_games);
                         remove_game(clients[i]);
 
-                        clean_client_game(clients[i]);
+                        reset_client_game_data(clients[i]);
                         pthread_mutex_lock(&clients_mutex);
                     }
                     // else -> client is in waiting state -> do nothing
@@ -292,8 +292,8 @@ void *run_ping() {
 
 void want_game_response(client *cl) {
     printf("Client %d wants to play\n", cl->id);
-    set_want_game(cl, TRUE);
-    int found = find_waiting_player(cl);
+    set_game_request(cl, TRUE);
+    int found = match_waiting_opponent(cl);
 
     char response[WANT_GAME_RESP_SIZE] = {0};
     if (found == FALSE) {
@@ -307,7 +307,7 @@ void want_game_response(client *cl) {
         // Start the game
         char game_response[START_GAME_MESSAGE_SIZE] = {0};
         sprintf(game_response, "START_GAME;%s;%c;%c\n", cl->opponent->username, cl->opponent->client_char,
-                cl->is_playing ? '1' : '0');
+                cl->is_in_game ? '1' : '0');
         send_mess(cl, game_response);
     }
 }

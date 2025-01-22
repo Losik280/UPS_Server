@@ -118,7 +118,7 @@ int remove_game(client *cl) {
     pthread_mutex_lock(&mutex_games);
 
     for (int i = 0; i < MAX_GAMES; i++) {
-        if (games[i] != NULL && games[i]->id == cl->current_game_id && games[i]->game_status == GAME_OVER) {
+        if (games[i] != NULL && games[i]->id == cl->active_game_id && games[i]->game_status == GAME_OVER) {
             free(games[i]);
             games[i] = NULL;
             pthread_mutex_unlock(&mutex_games);

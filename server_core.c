@@ -124,22 +124,22 @@ void *run_server() {
                 pthread_t client_thread = 0;
 
                 // Add the client to the client manager
-                if (!add_client(client_socket, username, &client_thread)) {
+                if (!register_client(client_socket, username, &client_thread)) {
                     perror("Failed to add client -> close client socket");
                     close(client_socket);
                     continue;
                 }
-                client *cl = get_client_by_socket(client_socket);
+                client *cl = locate_client_by_socket(client_socket);
 
                 // Create a new thread for the client
-                if (pthread_create(&client_thread, NULL, run_client, cl) != 0) {
+                if (pthread_create(&client_thread, NULL, client_thread_main, cl) != 0) {
                     perror("Thread creation failed");
                     close(client_socket);
-                    remove_client_by_socket(client_socket);
+                    detach_client_by_socket(client_socket);
                     continue;
                 }
 
-                print_clients();
+                display_all_clients();
             } else {
                 perror("Invalid connection message -> close client socket");
                 close(client_socket);

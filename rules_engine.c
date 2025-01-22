@@ -49,7 +49,7 @@ client *get_opponent_client(client *cl, game *g) {
  * @return int Returns GAME_WIN if the game is won, GAME_DRAW if it's a draw, or 0 if the game continues.
  */
 int check_available_moves(client *cl, int to_x, int to_y) {
-    game *g = get_game_by_id(cl->current_game_id);
+    game *g = get_game_by_id(cl->active_game_id);
     pthread_mutex_lock(&mutex_games);
 
     // Switch the player for opponent
@@ -136,7 +136,7 @@ int check_available_moves(client *cl, int to_x, int to_y) {
  */
 int validate_move(client *cl, int to_x, int to_y) {
     // Fetch the game by client ID
-    game *g = get_game_by_id(cl->current_game_id);
+    game *g = get_game_by_id(cl->active_game_id);
     if (g == NULL) {
         return GAME_NOT_FOUND;
     }

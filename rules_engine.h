@@ -3,6 +3,14 @@
 
 #include "def_n_struct.h"
 
+/**
+ * @brief Error states constants
+ */
+// Move states
+#define GAME_NOT_FOUND 5
+#define NOT_MY_TURN 6
+#define INVALID_MOVE 7
+#define FIELD_TAKEN 8
 
 /**
  * @brief Validates the move of the player and updates the game board

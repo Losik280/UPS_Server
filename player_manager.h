@@ -5,86 +5,99 @@
 #include "def_n_struct.h"
 #include "match_manager.h"
 
-// clients mutex
+/**
+ * Global mutex protecting operations on the global clients array.
+ */
 extern pthread_mutex_t clients_mutex;
 
+/**
+ * Global array holding pointers to all connected clients (up to MAX_CLIENTS).
+ */
 extern client *clients[MAX_CLIENTS];
 
 /**
- * Add new client to the array of clients
- * @param socket client's socket
- * @param username client's username
- * @param thread client's thread
- * @return TRUE if client was added, FALSE if client already exists
+ * Attempts to register a new client into the global clients array.
+ *
+ * @param socket The socket descriptor for the new client
+ * @param username The username of the new client
+ * @param thread A reference to the thread handling this client
+ * @return TRUE if the client was successfully added; FALSE if it already exists or the array is full
  */
-int add_client(int socket, char *username, pthread_t *thread);
+int register_client(int socket, char *username, pthread_t *thread);
 
 /**
- * Clean client's game data
- * @param cl client to clean
+ * Resets the specified client's game-related fields, such as current game ID.
+ *
+ * @param cl The client whose data should be cleared
  */
-void clean_client_game(client *cl);
+void reset_client_game_data(client *cl);
 
 /**
- * Client ping
- * @param cl client
- * @param is_connected TRUE if client is connected, FALSE if not
+ * Updates ping information for the specified client.
+ *
+ * @param cl The client to be updated
+ * @param is_connected TRUE if the client is currently connected, FALSE otherwise
  */
-void client_ping(client *cl, int is_connected);
+void update_client_ping(client *cl, int is_connected);
 
 /**
- * Find client who is waiting for another player and create a game if there is no waiting player
- * @param cl client who is ready to play
- * @return TRUE if game can start, FALSE if there is no waiting player or game was created as first player
+ * Searches for a client who is already waiting for an opponent; if found, creates a new game.
+ *
+ * @param cl The client ready to play
+ * @return TRUE if a waiting opponent was found and a game can start; FALSE otherwise
  */
-int find_waiting_player(client *cl);
+int match_waiting_opponent(client *cl);
 
 /**
- * Get client by his socket
- * @param socket socket of the client
- * @return client or NULL if not found
+ * Retrieves a client that has the given socket descriptor.
+ *
+ * @param socket The socket descriptor
+ * @return The client pointer if found; NULL otherwise
  */
-client *get_client_by_socket(int socket);
+client *locate_client_by_socket(int socket);
 
 /**
- * Get count of connected clients
- * @return count of connected clients
+ * Returns the number of currently connected clients.
+ *
+ * @return The count of connected clients
  */
 int get_connected_clients_count();
 
 /**
- * Print all clients
+ * Prints a summary of all registered clients to stdout.
  */
-void print_clients();
+void display_all_clients();
 
 /**
- * Remove client
- * @param cl client to remove
- * @return TRUE if client was removed, FALSE if not found
+ * Removes a specific client from the global clients array and closes its socket.
+ *
+ * @param cl The client to be removed
+ * @return TRUE if the client was removed; FALSE if it wasn't found
  */
-int remove_client(client *cl);
+int detach_client(client *cl);
 
 /**
- * Remove client by his socket
- * @param socket socket of the client
- * @return TRUE if client was removed, FALSE if not found
+ * Removes the client associated with the provided socket descriptor.
+ *
+ * @param socket The socket descriptor
+ * @return TRUE if the client was removed; FALSE if it was not found
  */
-int remove_client_by_socket(int socket);
+int detach_client_by_socket(int socket);
 
 /**
- * Run client thread
- * @param arg client
- * @return void pointer
+ * Entry point for the client handling thread.
+ *
+ * @param arg A pointer to the client
+ * @return A void pointer (unused)
  */
-void *run_client(void *arg);
+void *client_thread_main(void *arg);
 
 /**
- * Set if client is waiting for a game
- * @param cl client
- * @param want_game TRUE if client wants to play, FALSE if not
+ * Sets whether the client wants to participate in a game.
+ *
+ * @param cl The client
+ * @param want_game TRUE if the client wants a game; FALSE otherwise
  */
-void set_want_game(client *cl, int want_game);
-
-
+void set_game_request(client *cl, int want_game);
 
 #endif
